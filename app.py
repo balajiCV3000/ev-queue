@@ -66,7 +66,7 @@ def get_state():
     """Get current simulation state"""
     state = simulation.get_current_state()
     if not state:
-        return jsonify({'error': 'No simulation state available'})
+        return jsonify({'status': 'idle'})
     return jsonify(state)
 
 @app.route('/api/simulation/history')

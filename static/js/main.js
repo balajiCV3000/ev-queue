@@ -184,10 +184,20 @@ function generateNewData() {
 // Update simulation state from server
 function updateSimulationState() {
     fetch('/api/simulation/state')
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server error ${response.status} while updating simulation state`);
+        }
+        return response.json();
+    })
     .then(data => {
+        if (data.status === 'idle') {
+            // Simulation has not started yet; nothing to update.
+            return;
+        }
+
         if (data.error) {
-            console.error(data.error);
+            console.error('Error updating simulation state:', data.error);
             return;
         }
         
