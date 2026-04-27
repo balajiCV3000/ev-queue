@@ -117,6 +117,40 @@ The algorithm evaluates multiple factors to assign EVs to optimal charging stati
   - Number of geographic nodes
   - Number of routes
 
+## AWS Deployment Architecture
+
+### Services in use
+
+- **GitHub Actions**: Runs deployment on push to `main`/`master`.
+- **Amazon ECR**: Stores versioned Docker images for the app.
+- **Amazon ECS**: Runs the app as a managed service in `ev-queue-3-cluster`.
+- **Application Load Balancer (via ECS target group)**: Routes traffic and checks app health through `/health`.
+- **IAM credentials in GitHub Secrets**: Authorize CI to push images and trigger ECS deployment.
+
+### Deployment and runtime flow
+
+```mermaid
+flowchart LR
+  A[Developer push to main/master] --> B[GitHub Actions workflow]
+  B --> C[Build Docker image]
+  C --> D[Push image to Amazon ECR]
+  D --> E[aws ecs update-service --force-new-deployment]
+  E --> F[ECS launches new tasks]
+  F --> G[ALB health checks /health]
+  G --> H[Only healthy tasks receive traffic]
+```
+
+### Why this design
+
+- **ECR + ECS** provides a straightforward container deployment path with low operational overhead.
+- **GitHub Actions** keeps deployment automated and reproducible from source control events.
+- **`/health` endpoint** supports safe task replacement and load balancer health-based routing.
+- **Gunicorn in Docker** gives a production-ready Flask serving model for ECS tasks.
+
+### Operational note
+
+- The workflow pushes images tagged by commit SHA and forces ECS redeployment; ensure your ECS task definition/tag strategy allows new images to be pulled during deployment.
+
 ## License
 
 This project is licensed under a custom license — see the [LICENSE](LICENSE) file for details.
