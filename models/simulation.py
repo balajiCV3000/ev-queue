@@ -168,7 +168,7 @@ class Simulation:
         evs_with_wait = sum(1 for ev in self.evs if ev.waiting_time > 0)
         
         # Use CURRENT maximum queue length instead of historical maximum
-        current_max_queue = max(len(station.queue) for station in self.stations)
+        current_max_queue = max((len(station.queue) for station in self.stations), default=0)
         
         completed_trips = sum(1 for ev in self.evs if ev.trip_completed)
         abandoned_evs = sum(1 for ev in self.evs if ev.abandoned)
@@ -186,16 +186,21 @@ class Simulation:
         for station in self.stations:
             self.metrics['station_utilization'][station.id] = len(station.charging_evs) / station.num_chargers
     
-    def _record_state(self):
-        """Record current state for history"""
-        state = {
+    def _build_state(self):
+        """Build a serializable snapshot of the current simulation state."""
+        return {
             'step': self.current_step,
             'timestamp': datetime.now().isoformat(),
+            'running': self.running,
             'evs': [ev.to_dict() for ev in self.evs],
             'stations': [station.to_dict() for station in self.stations],
             'metrics': self.metrics.copy(),
             'optimization_logs': self.optimization_logs.copy()
         }
+
+    def _record_state(self):
+        """Record current state for history"""
+        state = self._build_state()
         self.step_history.append(state)
         
         # Keep only recent history to avoid memory issues
@@ -205,7 +210,7 @@ class Simulation:
     def get_current_state(self):
         """Get current simulation state"""
         if not self.step_history:
-            return None
+            return self._build_state()
         return self.step_history[-1]
     
     def get_history(self, start=0, count=100):

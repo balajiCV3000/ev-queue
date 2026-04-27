@@ -96,6 +96,7 @@ jobs:
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_SERVICE" \
             --task-definition "$TASK_DEFINITION_ARN" \
+            --desired-count 1 \
             --force-new-deployment \
             --region "$AWS_REGION"
 

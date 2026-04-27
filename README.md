@@ -148,6 +148,7 @@ flowchart TD
 
 - Runtime configuration is environment-first (`config.py` reads environment variables and `.env` for local development).
 - In production, set `APP_ENV=production` and keep `REQUIRE_MAPS_API_KEY=true` so startup fails fast if map credentials are missing.
+- The container intentionally runs one Gunicorn worker and one ECS task because live simulation state is stored in process memory. Move state to Redis or a database before scaling workers or ECS task count.
 - Deployment now registers a new ECS task definition revision per image tag and updates the service to that exact revision.
 
 ## License
