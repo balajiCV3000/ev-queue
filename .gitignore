@@ -103,7 +103,6 @@ venv.bak/
 .vscode/
 
 # Project specific
-config.py
 *.pkl
 route_cache.pkl
 nodes_cache.pkl

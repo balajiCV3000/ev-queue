@@ -10,7 +10,7 @@ from models.simulation import Simulation
 parser = argparse.ArgumentParser(description='EV Queue Simulation Server')
 parser.add_argument('--no-cache', action='store_true', help='Disable data caching')
 parser.add_argument('--clear-cache', action='store_true', help='Clear existing cache before starting')
-args = parser.parse_args()
+args, _ = parser.parse_known_args()
 
 app = Flask(__name__)
 
@@ -37,6 +37,11 @@ print("Server initialization complete!")
 def index():
     """Render main page"""
     return render_template('index.html', api_key=config.GOOGLE_MAPS_API_KEY)
+
+@app.route('/health')
+def health():
+    """Health check endpoint for load balancers"""
+    return {"status": "healthy"}, 200
 
 @app.route('/api/simulation/start', methods=['POST'])
 def start_simulation():
