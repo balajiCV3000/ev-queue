@@ -2,7 +2,8 @@ name: Deploy to ECS
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
