@@ -81,21 +81,16 @@ The algorithm evaluates multiple factors to assign EVs to optimal charging stati
    pip install -r requirements.txt
 ```
 
-3. Create `config.py` in the root directory:
-```python
-   # API Keys
-   GOOGLE_MAPS_API_KEY = "your_google_maps_api_key"
-
-   # Server settings
-   HOST = "127.0.0.1"
-   PORT = 5000
-   DEBUG = True
-
-   # Simulation settings
-   TIME_STEP_SECONDS = 60        # Each step = 60 seconds
-   OPTIMIZATION_INTERVAL = 10    # Run optimization every 10 steps
-   CHARGE_THRESHOLD = 0.3        # Seek charging at 30% battery
+3. Create a local environment file:
+```bash
+   cp env.example .env
 ```
+
+4. Update `.env` values as needed:
+   - `GOOGLE_MAPS_API_KEY` for route generation
+   - `DEBUG` for local debugging (`false` by default)
+   - `BOOTSTRAP_SIMULATION` (`true` for full startup, `false` for lightweight smoke tests)
+   - `APP_ENV` and `REQUIRE_MAPS_API_KEY` for production safety checks
 
 ## Usage
 
@@ -121,7 +116,8 @@ The algorithm evaluates multiple factors to assign EVs to optimal charging stati
 
 ### Services in use
 
-- **GitHub Actions**: Runs deployment on push to `main`/`master`.
+- **GitHub Actions CI**: Runs lint, tests, and dependency vulnerability checks on PRs and protected branches.
+- **GitHub Actions Deploy**: Deploys only after CI succeeds on `main`/`master` (or manual dispatch).
 - **Amazon ECR**: Stores versioned Docker images for the app.
 - **Amazon ECS**: Runs the app as a managed service in `ev-queue-3-cluster`.
 - **Application Load Balancer (via ECS target group)**: Routes traffic and checks app health through `/health`.
@@ -130,14 +126,15 @@ The algorithm evaluates multiple factors to assign EVs to optimal charging stati
 ### Deployment and runtime flow
 
 ```mermaid
-flowchart LR
-  A[Developer push to main/master] --> B[GitHub Actions workflow]
-  B --> C[Build Docker image]
-  C --> D[Push image to Amazon ECR]
-  D --> E[aws ecs update-service --force-new-deployment]
-  E --> F[ECS launches new tasks]
-  F --> G[ALB health checks /health]
-  G --> H[Only healthy tasks receive traffic]
+flowchart TD
+  A[Developer push to main/master] --> B[CI workflow]
+  B -->|pass| C[Deploy workflow]
+  C --> D[Build Docker image]
+  D --> E[Push image to Amazon ECR]
+  E --> F[Register ECS task definition with image SHA]
+  F --> G[Update ECS service to new task definition]
+  G --> H[ALB health checks /health]
+  H --> I[Only healthy tasks receive traffic]
 ```
 
 ### Why this design
@@ -147,9 +144,11 @@ flowchart LR
 - **`/health` endpoint** supports safe task replacement and load balancer health-based routing.
 - **Gunicorn in Docker** gives a production-ready Flask serving model for ECS tasks.
 
-### Operational note
+### Operational notes
 
-- The workflow pushes images tagged by commit SHA and forces ECS redeployment; ensure your ECS task definition/tag strategy allows new images to be pulled during deployment.
+- Runtime configuration is environment-first (`config.py` reads environment variables and `.env` for local development).
+- In production, set `APP_ENV=production` and keep `REQUIRE_MAPS_API_KEY=true` so startup fails fast if map credentials are missing.
+- Deployment now registers a new ECS task definition revision per image tag and updates the service to that exact revision.
 
 ## License
 
