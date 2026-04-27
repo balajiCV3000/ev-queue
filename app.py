@@ -1,6 +1,4 @@
 from flask import Flask, render_template, jsonify, request
-import threading
-import time
 import config
 import argparse
 from utils.data_generator import generate_synthetic_data
@@ -13,6 +11,7 @@ parser.add_argument('--clear-cache', action='store_true', help='Clear existing c
 args, _ = parser.parse_known_args()
 
 app = Flask(__name__)
+config.validate_required_config()
 
 # Clear cache if requested
 if args.clear_cache:
@@ -26,12 +25,23 @@ if args.clear_cache:
         except Exception as e:
             print(f"Failed to remove {cache_file}: {e}")
 
-# Initialize simulation with predefined routes
-print("Initializing simulation data...")
-evs, stations, routes = generate_synthetic_data(100, 20, 80, 240, use_cache=not args.no_cache)
-print("Creating simulation engine...")
-simulation = Simulation(evs, stations, routes)
-print("Server initialization complete!")
+def initialize_simulation():
+    """Initialize simulation data unless explicitly disabled."""
+    if not config.BOOTSTRAP_SIMULATION:
+        print("Skipping simulation bootstrap (BOOTSTRAP_SIMULATION=false)")
+        return [], [], [], Simulation([], [], [])
+
+    print("Initializing simulation data...")
+    evs_local, stations_local, routes_local = generate_synthetic_data(
+        100, 20, 80, 240, use_cache=not args.no_cache
+    )
+    print("Creating simulation engine...")
+    simulation_local = Simulation(evs_local, stations_local, routes_local)
+    print("Server initialization complete!")
+    return evs_local, stations_local, routes_local, simulation_local
+
+
+evs, stations, routes, simulation = initialize_simulation()
 
 @app.route('/')
 def index():
