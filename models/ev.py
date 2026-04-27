@@ -10,6 +10,7 @@ class EV:
         self.origin = origin  # (lat, lng)
         self.destination = destination  # (lat, lng)
         self.battery_capacity = battery_capacity  # kWh
+        self.initial_soc = initial_soc  # Preserve original SoC for simulation reset
         self.soc = initial_soc  # State of Charge (0-1)
         self.consumption_rate = consumption_rate  # kWh/km
         

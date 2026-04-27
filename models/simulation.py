@@ -240,13 +240,18 @@ class Simulation:
         for ev in self.evs:
             ev.current_position = ev.origin
             ev.route_index = 0
-            ev.soc = ev.initial_soc
+            ev.soc = getattr(ev, 'initial_soc', ev.soc)
             ev.charging = False
             ev.in_queue = False
             ev.assigned_station = None
+            ev.queue_arrival_time = None
+            ev.charging_start_time = None
             ev.waiting_time = 0
+            ev.target_soc = 0.8
             ev.trip_completed = False
             ev.abandoned = False
+            ev.trip_start_time = datetime.now()
+            ev.trip_end_time = None
             ev.journey_log = []
             # Record initialization
             ev._log_event("Initialized", {

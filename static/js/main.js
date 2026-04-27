@@ -87,7 +87,12 @@ function resetSimulation() {
     fetch('/api/simulation/reset', {
         method: 'POST'
     })
-    .then(response => response.json())
+    .then(response => response.json().then(data => {
+        if (!response.ok) {
+            throw new Error(data.error || `Server error ${response.status} while resetting simulation`);
+        }
+        return data;
+    }))
     .then(data => {
         if (data.success) {
             // Update state immediately

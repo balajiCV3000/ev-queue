@@ -68,8 +68,12 @@ def stop_simulation():
 @app.route('/api/simulation/reset', methods=['POST'])
 def reset_simulation():
     """Reset the simulation"""
-    success = simulation.reset()
-    return jsonify({'success': success})
+    try:
+        success = simulation.reset()
+        return jsonify({'success': success})
+    except Exception as exc:
+        app.logger.exception("Failed to reset simulation")
+        return jsonify({'success': False, 'error': str(exc)}), 500
 
 @app.route('/api/simulation/state')
 def get_state():
