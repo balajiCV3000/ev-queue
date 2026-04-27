@@ -14,3 +14,12 @@ def test_ecs_deploy_uses_single_task_for_in_memory_simulation():
     text = deploy_workflow.read_text()
 
     assert "--desired-count 1" in text
+
+
+def test_ci_python_version_matches_docker_base_image():
+    root = pathlib.Path(__file__).resolve().parents[1]
+    dockerfile = (root / "Dockerfile").read_text()
+    ci_workflow = (root / ".github" / "workflows" / "ci.yml").read_text()
+
+    assert "FROM python:3.10-slim" in dockerfile
+    assert 'python-version: "3.10"' in ci_workflow
