@@ -25,6 +25,7 @@ jobs:
       ECS_CLUSTER: ev-queue-3-cluster
       ECS_SERVICE: ev-queue-3-service
 
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,6 +80,7 @@ jobs:
               .registeredBy
             )
             | .containerDefinitions[0].image = $IMAGE_URI
+            | .containerDefinitions[0].portMappings = [{"containerPort": 80, "hostPort": 80, "protocol": "tcp"}]
           ' task-definition.json > task-definition-updated.json
 
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
@@ -91,6 +93,8 @@ jobs:
       - name: Deploy to ECS service
         env:
           TASK_DEFINITION_ARN: ${{ steps.task-def.outputs.task_definition_arn }}
+          ECS_SUBNETS: ${{ secrets.ECS_PUBLIC_SUBNET_IDS }}
+          ECS_SECURITY_GROUP: ${{ secrets.ECS_SECURITY_GROUP_ID }}
         run: |
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
@@ -98,6 +102,7 @@ jobs:
             --task-definition "$TASK_DEFINITION_ARN" \
             --desired-count 1 \
             --force-new-deployment \
+            --network-configuration "awsvpcConfiguration={subnets=[$ECS_SUBNETS],securityGroups=[$ECS_SECURITY_GROUP],assignPublicIp=ENABLED}" \
             --region "$AWS_REGION"
 
           aws ecs wait services-stable \
@@ -105,3 +110,38 @@ jobs:
             --services "$ECS_SERVICE" \
             --region "$AWS_REGION"
 
+      - name: Get ECS task public IP
+        id: get-ip
+        run: |
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --service-name "$ECS_SERVICE" \
+            --query "taskArns[0]" \
+            --output text)
+
+          ENI_ID=$(aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
+            --output text)
+
+          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
+            --network-interface-ids "$ENI_ID" \
+            --query "NetworkInterfaces[0].Association.PublicIp" \
+            --output text)
+
+          echo "public_ip=$PUBLIC_IP" >> "$GITHUB_OUTPUT"
+          echo "Task running at $PUBLIC_IP"
+
+      - name: Update DuckDNS
+        env:
+          PUBLIC_IP: ${{ steps.get-ip.outputs.public_ip }}
+          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+        run: |
+          RESPONSE=$(curl -s "https://www.duckdns.org/update?domains=evcharge&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP")
+          echo "DuckDNS response: $RESPONSE"
+          if [ "$RESPONSE" != "OK" ]; then
+            echo "DuckDNS update failed"
+            exit 1
+          fi
+          echo "Updated evcharge.duckdns.org → $PUBLIC_IP"

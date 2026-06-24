@@ -11,6 +11,7 @@ parser.add_argument('--clear-cache', action='store_true', help='Clear existing c
 args, _ = parser.parse_known_args()
 
 app = Flask(__name__)
+app.config['TRUSTED_HOSTS'] = ['evcharge.duckdns.org']
 config.validate_required_config()
 
 # Clear cache if requested
