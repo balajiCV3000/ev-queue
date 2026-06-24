@@ -93,8 +93,6 @@ jobs:
       - name: Deploy to ECS service
         env:
           TASK_DEFINITION_ARN: ${{ steps.task-def.outputs.task_definition_arn }}
-          ECS_SUBNETS: ${{ secrets.ECS_PUBLIC_SUBNET_IDS }}
-          ECS_SECURITY_GROUP: ${{ secrets.ECS_SECURITY_GROUP_ID }}
         run: |
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
@@ -102,7 +100,6 @@ jobs:
             --task-definition "$TASK_DEFINITION_ARN" \
             --desired-count 1 \
             --force-new-deployment \
-            --network-configuration "awsvpcConfiguration={subnets=[$ECS_SUBNETS],securityGroups=[$ECS_SECURITY_GROUP],assignPublicIp=ENABLED}" \
             --region "$AWS_REGION"
 
           aws ecs wait services-stable \
@@ -112,6 +109,7 @@ jobs:
 
       - name: Get ECS task public IP
         id: get-ip
+        continue-on-error: true
         run: |
           TASK_ARN=$(aws ecs list-tasks \
             --cluster "$ECS_CLUSTER" \
@@ -134,6 +132,7 @@ jobs:
           echo "Task running at $PUBLIC_IP"
 
       - name: Update DuckDNS
+        continue-on-error: true
         env:
           PUBLIC_IP: ${{ steps.get-ip.outputs.public_ip }}
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
